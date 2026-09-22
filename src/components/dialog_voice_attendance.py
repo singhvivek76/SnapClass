@@ -10,6 +10,20 @@ import pandas as pd
 from src.components.dialog_attendance_results import show_attendance_result
 from datetime import datetime
 
+
+def read_audio_bytes(audio_data):
+    if audio_data is None:
+        return None
+
+    if hasattr(audio_data, 'read'):
+        try:
+            return audio_data.read()
+        except (AttributeError, TypeError, ValueError):
+            return None
+
+    return audio_data
+
+
 @st.dialog('Voice Attendance')
 def voice_attendance_dialog(selected_subject_id):
     st.write('Record audio of students saying I am present. Then AI will recognize the students')
@@ -20,6 +34,10 @@ def voice_attendance_dialog(selected_subject_id):
     audio_data = st.audio_input("Record classroom audio")
 
     if st.button('Analyze Audio', width='stretch', type='primary'):
+        if not audio_data:
+            st.warning('Please record classroom audio before analyzing.')
+            return
+
         with st.spinner('Prcessing Audio data'):
             enrolled_res = supabase.table('subject_students').select("*, students(*)").eq('subject_id',selected_subject_id ).execute()
             enrolled_students = enrolled_res.data
@@ -36,7 +54,10 @@ def voice_attendance_dialog(selected_subject_id):
                 st.error('No enrolled students have voice profiles registerd')
                 return
             
-            audio_bytes = audio_data.read()
+            audio_bytes = read_audio_bytes(audio_data)
+            if audio_bytes is None:
+                st.warning('The recorded audio could not be read. Please try again.')
+                return
 
             detected_scores = process_bulk_audio(audio_bytes, candidates_dict)
 
