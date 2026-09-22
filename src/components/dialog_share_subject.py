@@ -6,7 +6,7 @@ from src.database.db import create_subject
 
 @st.dialog("Share Class Link")
 def share_subject_dialog(subject_name, subject_code):
-    app_domain = "snapclass_main.streamlit.app"
+    app_domain = "snapclassess-mains.streamlit.app"
     join_url = f"{app_domain}/?join-code={subject_code}"
     
     qr = segno.make(join_url)
