@@ -20,6 +20,33 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
+
+def build_attendance_results(enrolled_students, all_detected_ids, selected_subject_id, current_timestamp):
+    results = []
+    attendance_to_log = []
+
+    for node in enrolled_students:
+        student = node['students']
+        sources = all_detected_ids.get(int(student['student_id']), [])
+        is_present = len(sources) > 0
+
+        results.append({
+            "Name": student['name'],
+            "ID": student['student_id'],
+            "Source": ", ".join(sources) if is_present else "-",
+            "Status": "✅ Present" if is_present else "❌ Absent"
+        })
+
+        attendance_to_log.append({
+            'student_id': student['student_id'],
+            'subject_id': selected_subject_id,
+            'timestamp': current_timestamp,
+            'is_present': bool(is_present)
+        })
+
+    return pd.DataFrame(results), attendance_to_log
+
+
 def teacher_screen():
     
     style_background_dashboard()
@@ -148,38 +175,21 @@ def teacher_tab_take_attendance():
 
                             all_detected_ids.setdefault(student_id, []).append(f"Photo {idx+1}")
 
-                enrolled_res = supabase.table('subject_students').select("*, students(*)").eq('subject_id',selected_subject_id ).execute()
+                enrolled_res = supabase.table('subject_students').select("*, students(*)").eq('subject_id', selected_subject_id).execute()
                 enrolled_students = enrolled_res.data
 
                 if not enrolled_students:
                     st.warning('No students enrolled in this course!')
-                else:
+                    return
 
-                    results, attendance_to_log  = [], []
-
-                    current_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-
-
-                    for node in enrolled_students:
-                        student = node['students']
-                        sources = all_detected_ids.get(int(student['student_id']), [])
-                        is_present= len(sources) > 0
-
-                        results.append({
-                            "Name": student['name'],
-                            "ID": student['student_id'],
-                            "Source": ", ".join(sources) if is_present else "-",
-                            "Status": "✅ Present" if is_present else "❌ Absent"
-                        })
-
-                        attendance_to_log.append({
-                            'student_id': student['student_id'],
-                            'subject_id': selected_subject_id,
-                            'timestamp': current_timestamp,
-                            'is_present': bool(is_present)
-                        })
-
-                attendance_result_dialog(pd.DataFrame(results), attendance_to_log)
+                current_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+                results, attendance_to_log = build_attendance_results(
+                    enrolled_students,
+                    all_detected_ids,
+                    selected_subject_id,
+                    current_timestamp,
+                )
+                attendance_result_dialog(results, attendance_to_log)
 
     with c3:
         if st.button('Use Voice Attendance', type='primary', width='stretch', icon=':material/mic:'):
